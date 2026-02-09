@@ -1,2 +1,254 @@
-# victoria-logs-docker-compose
-Deploy Victoria Logs with Docker Compose
+# Victoria Logs Docker Compose
+
+A production-ready Docker Compose configuration for deploying [Victoria Logs](https://docs.victoriametrics.com/victorialogs/) — a fast, cost-effective log storage and search engine optimized for constrained environments.
+
+## Overview
+
+Victoria Logs is a time-series log storage built by VictoriaMetrics that provides:
+- High compression ratio and low resource consumption
+- Fast log search and filtering
+- Integration with popular log collectors (Fluentd, Logstash, Promtail, etc.)
+- JSON-structured logging support
+- Cost-effective storage for 2C/8GB+ environments
+
+## Prerequisites
+
+- Docker and Docker Compose installed
+- At least 2 CPU cores and 8GB RAM recommended
+- Sufficient disk space for log storage (adjust retention period as needed)
+
+## Quick Start
+
+1. **Clone the repository:**
+   ```bash
+   git clone <repo-url>
+   cd victoria-logs-docker-compose
+   ```
+
+2. **Start the container:**
+   ```bash
+   docker compose up -d
+   ```
+
+3. **Verify it's running:**
+   ```bash
+   docker compose ps
+   docker compose logs victoria-logs
+   ```
+
+4. **Access Victoria Logs Web UI** (if port is exposed):
+   ```
+   http://localhost:9428
+   ```
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `VM_MEMORY_ALLOWED_PERCENT` | 75 | Max memory threshold before optimizations kick in |
+
+### Command-line Flags
+
+| Flag | Value | Purpose |
+|------|-------|---------|
+| `-storageDataPath` | `/victoria-logs-data` | Directory for log storage |
+| `-retentionPeriod` | `7d` | How long logs are retained |
+| `-search.maxConcurrentRequests` | `4` | Concurrent query limit (resource optimization) |
+| `-loggerFormat` | `json` | Log format (json, default) |
+
+### Resource Limits
+
+Configured for constrained environments (2C/8GB):
+
+```yaml
+CPU:      2 cores (hard limit)
+Memory:   6GB (hard limit) / 2GB (reservation)
+```
+
+These can be adjusted in the `deploy.resources` section if you have different hardware.
+
+## Port Configuration
+
+By default, the port is **commented out** for security. To enable external access:
+
+```yaml
+ports:
+  - "9428:9428"  # Uncomment to expose the API port
+```
+
+Then restart:
+```bash
+docker compose up -d
+```
+
+## Data Persistence
+
+Logs are stored in a Docker named volume `victoria-logs-data`, which persists across container restarts:
+
+```bash
+# Inspect volume
+docker volume inspect victoria-logs-docker-compose_victoria-logs-data
+
+# Remove volume (WARNING: deletes all logs)
+docker volume rm victoria-logs-docker-compose_victoria-logs-data
+```
+
+## Health Checks
+
+A health check is configured to monitor the container:
+
+```bash
+docker compose ps  # Shows health status
+```
+
+Health check details:
+- **Endpoint:** `http://localhost:9428/health`
+- **Interval:** 30 seconds
+- **Timeout:** 5 seconds
+- **Retries:** 3
+
+## Logging & Rotation
+
+Container logs are rotated to prevent disk fill:
+
+```yaml
+max-size: "50m"   # Max single log file
+max-file: "3"     # Keep 3 rotated files
+```
+
+View logs:
+```bash
+docker compose logs -f victoria-logs
+```
+
+## Customization
+
+### Increase Retention Period
+
+Edit `docker-compose.yml` and change `-retentionPeriod`:
+
+```yaml
+- "-retentionPeriod=30d"  # Keep logs for 30 days
+```
+
+### Adjust Memory Limits
+
+For systems with more resources:
+
+```yaml
+deploy:
+  resources:
+    limits:
+      memory: 8G        # Increase from 6G
+    reservations:
+      memory: 4G        # Increase from 2G
+```
+
+### Enable External API Access
+
+Uncomment the ports section:
+
+```yaml
+ports:
+  - "9428:9428"
+```
+
+## Troubleshooting
+
+### Container exits/restarts frequently
+
+Check logs for memory issues:
+```bash
+docker compose logs victoria-logs | grep -i "oom\|memory"
+```
+
+**Solution:** Increase memory limits or reduce retention period.
+
+### Out of Disk Space
+
+Monitor volume:
+```bash
+docker volume inspect victoria-logs-docker-compose_victoria-logs-data
+df -h /var/lib/docker/volumes/  # Check actual disk usage
+```
+
+**Solution:** Reduce retention period, increase disk space, or implement log rotation/cleanup.
+
+### API Port Not Accessible
+
+Verify port is uncommented:
+```bash
+docker compose config | grep ports -A 2
+```
+
+Check if it's listening:
+```bash
+docker compose exec victoria-logs netstat -tuln | grep 9428
+```
+
+### Health Check Failing
+
+Test connectivity:
+```bash
+docker compose exec victoria-logs wget -O- http://localhost:9428/health
+```
+
+## Integration with Log Collectors
+
+To send logs to Victoria Logs, configure your log collector:
+
+### Fluentd
+```
+<match **>
+  @type http
+  endpoint http://victoria-logs:9428/insert/logs
+  json_array true
+</match>
+```
+
+### Promtail (Loki client)
+```yaml
+clients:
+  - url: http://victoria-logs:9428/insert/loki/api/v1/push
+```
+
+## Maintenance
+
+### Backup Data
+
+```bash
+docker run --rm -v victoria-logs-docker-compose_victoria-logs-data:/data \
+  -v /backup:/backup ubuntu tar czf /backup/victoria-logs-backup.tar.gz -C /data .
+```
+
+### Clean Up Old Logs
+
+Victoria Logs automatically purges old logs based on retention period. No manual cleanup needed.
+
+### Update Victoria Logs Version
+
+1. Edit `docker-compose.yml` and update the image version
+2. Pull the new image: `docker compose pull`
+3. Restart: `docker compose up -d`
+
+## Performance Tuning
+
+For larger deployments or higher log volumes:
+
+1. **Increase concurrent requests:** `-search.maxConcurrentRequests=8`
+2. **Adjust memory threshold:** `-VM_MEMORY_ALLOWED_PERCENT=90`
+3. **Enable caching:** Add `-cacheExpireDuration=1h`
+
+See [Victoria Logs docs](https://docs.victoriametrics.com/victorialogs/) for more options.
+
+## License & Attribution
+
+This Docker Compose configuration is for deploying [Victoria Logs](https://github.com/VictoriaMetrics/VictoriaMetrics) by VictoriaMetrics.
+
+## Support
+
+For issues with Victoria Logs itself, see:
+- [Official Documentation](https://docs.victoriametrics.com/victorialogs/)
+- [GitHub Issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues)
