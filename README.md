@@ -144,9 +144,11 @@ docker compose logs -f grafana
 3. Search for and select **Loki** (Victoria Logs is compatible with Loki API)
 4. Configure the data source:
    - **Name:** Victoria Logs
-   - **URL:** `http://victoria-logs:9428/select/logsql/query`
+   - **URL:** `http://victoria-logs:9428`
    - **Access:** Server (default)
 5. Click **Save & Test**
+
+**Note:** Victoria Logs implements the Loki API, so you can use the Loki data source in Grafana. The queries will be sent to Victoria Logs' `/select/logsql/query` endpoint automatically.
 
 ### Creating Dashboards
 
@@ -166,7 +168,15 @@ Default environment variables (can be customized in `docker-compose.yml`):
 | `GF_USERS_ALLOW_SIGN_UP` | `false` | Disable user registration |
 | `GF_LOG_LEVEL` | `info` | Logging level |
 
-**Security Note:** Change the default admin password in production by modifying the environment variables in `docker-compose.yml`.
+**Security Note:** Change the default admin password in production by modifying the environment variables in `docker-compose.yml`:
+
+```yaml
+environment:
+  - GF_SECURITY_ADMIN_USER=admin
+  - GF_SECURITY_ADMIN_PASSWORD=<your-secure-password>
+```
+
+Or use Docker secrets or environment variable files for better security.
 
 ## Customization
 
