@@ -43,7 +43,7 @@ services:
         max-file: "3"
 
   grafana:
-    image: grafana/grafana:11.4.0
+    image: grafana/grafana:12.3-ubuntu
     container_name: grafana
     ports:
       - "127.0.0.1:3000:3000"
