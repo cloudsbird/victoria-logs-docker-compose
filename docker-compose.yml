@@ -2,8 +2,8 @@ services:
   victoria-logs:
     image: victoriametrics/victoria-logs:v1.45.0
     container_name: victoria-logs
-    # ports:
-    #   - "9428:9428"
+    ports:
+      - "9428:9428"
     volumes:
       - victoria-logs-data:/victoria-logs-data
     environment:
@@ -42,6 +42,35 @@ services:
         max-size: "50m"
         max-file: "3"
 
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_LOG_LEVEL=info
+    restart: unless-stopped
+    depends_on:
+      - victoria-logs
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
 volumes:
   victoria-logs-data:
+    driver: local
+  grafana-data:
     driver: local

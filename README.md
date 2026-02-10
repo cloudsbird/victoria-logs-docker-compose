@@ -1,6 +1,6 @@
 # Victoria Logs Docker Compose
 
-A production-ready Docker Compose configuration for deploying [Victoria Logs](https://docs.victoriametrics.com/victorialogs/) — a fast, cost-effective log storage and search engine optimized for constrained environments.
+A production-ready Docker Compose configuration for deploying [Victoria Logs](https://docs.victoriametrics.com/victorialogs/) — a fast, cost-effective log storage and search engine optimized for constrained environments, with [Grafana](https://grafana.com/) for visualization and querying.
 
 ## Overview
 
@@ -11,10 +11,14 @@ Victoria Logs is a time-series log storage built by VictoriaMetrics that provide
 - JSON-structured logging support
 - Cost-effective storage for 2C/8GB+ environments
 
+This setup includes:
+- **Victoria Logs**: Log storage and search engine
+- **Grafana**: Web-based visualization and query interface
+
 ## Prerequisites
 
 - Docker and Docker Compose installed
-- At least 2 CPU cores and 8GB RAM recommended
+- At least 2 CPU cores and 10GB RAM recommended (for both Victoria Logs and Grafana)
 - Sufficient disk space for log storage (adjust retention period as needed)
 
 ## Quick Start
@@ -33,13 +37,12 @@ Victoria Logs is a time-series log storage built by VictoriaMetrics that provide
 3. **Verify it's running:**
    ```bash
    docker compose ps
-   docker compose logs victoria-logs
+   docker compose logs
    ```
 
-4. **Access Victoria Logs Web UI** (if port is exposed):
-   ```
-   http://localhost:9428
-   ```
+4. **Access the services:**
+   - **Grafana**: http://localhost:3000 (username: `admin`, password: `admin`)
+   - **Victoria Logs API**: http://localhost:9428
 
 ## Configuration
 
@@ -71,28 +74,28 @@ These can be adjusted in the `deploy.resources` section if you have different ha
 
 ## Port Configuration
 
-By default, the port is **commented out** for security. To enable external access:
+The following ports are exposed:
 
-```yaml
-ports:
-  - "9428:9428"  # Uncomment to expose the API port
-```
-
-Then restart:
-```bash
-docker compose up -d
-```
+| Service | Port | Purpose |
+|---------|------|---------|
+| Victoria Logs | 9428 | Log ingestion and query API |
+| Grafana | 3000 | Web UI for visualization |
 
 ## Data Persistence
 
-Logs are stored in a Docker named volume `victoria-logs-data`, which persists across container restarts:
+Data is stored in Docker named volumes, which persist across container restarts:
+
+- `victoria-logs-data`: Log storage data
+- `grafana-data`: Grafana dashboards and configuration
 
 ```bash
-# Inspect volume
+# Inspect volumes
 docker volume inspect victoria-logs-docker-compose_victoria-logs-data
+docker volume inspect victoria-logs-docker-compose_grafana-data
 
-# Remove volume (WARNING: deletes all logs)
+# Remove volumes (WARNING: deletes all data)
 docker volume rm victoria-logs-docker-compose_victoria-logs-data
+docker volume rm victoria-logs-docker-compose_grafana-data
 ```
 
 ## Health Checks
@@ -121,7 +124,49 @@ max-file: "3"     # Keep 3 rotated files
 View logs:
 ```bash
 docker compose logs -f victoria-logs
+docker compose logs -f grafana
 ```
+
+## Grafana Setup
+
+### Initial Login
+
+1. Access Grafana at http://localhost:3000
+2. Login with default credentials:
+   - **Username:** `admin`
+   - **Password:** `admin`
+3. You'll be prompted to change the password on first login
+
+### Adding Victoria Logs as a Data Source
+
+1. In Grafana, go to **Configuration** (gear icon) → **Data Sources**
+2. Click **Add data source**
+3. Search for and select **Loki** (Victoria Logs is compatible with Loki API)
+4. Configure the data source:
+   - **Name:** Victoria Logs
+   - **URL:** `http://victoria-logs:9428/select/logsql/query`
+   - **Access:** Server (default)
+5. Click **Save & Test**
+
+### Creating Dashboards
+
+Once the data source is configured, you can:
+- Use the **Explore** tab to query logs interactively
+- Create custom dashboards to visualize log patterns
+- Set up alerts based on log queries
+
+### Grafana Configuration
+
+Default environment variables (can be customized in `docker-compose.yml`):
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `GF_SECURITY_ADMIN_USER` | `admin` | Admin username |
+| `GF_SECURITY_ADMIN_PASSWORD` | `admin` | Admin password (change this!) |
+| `GF_USERS_ALLOW_SIGN_UP` | `false` | Disable user registration |
+| `GF_LOG_LEVEL` | `info` | Logging level |
+
+**Security Note:** Change the default admin password in production by modifying the environment variables in `docker-compose.yml`.
 
 ## Customization
 
@@ -135,7 +180,7 @@ Edit `docker-compose.yml` and change `-retentionPeriod`:
 
 ### Adjust Memory Limits
 
-For systems with more resources:
+For systems with more resources (recommended when running both services):
 
 ```yaml
 deploy:
@@ -146,14 +191,13 @@ deploy:
       memory: 4G        # Increase from 2G
 ```
 
+**Note:** When running both Victoria Logs and Grafana, consider increasing available memory to at least 10GB total system RAM.
+
 ### Enable External API Access
 
-Uncomment the ports section:
-
-```yaml
-ports:
-  - "9428:9428"
-```
+The ports for both services are enabled by default in this configuration:
+- Victoria Logs: `9428`
+- Grafana: `3000`
 
 ## Troubleshooting
 
