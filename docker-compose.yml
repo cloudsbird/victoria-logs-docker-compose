@@ -3,7 +3,7 @@ services:
     image: victoriametrics/victoria-logs:v1.45.0
     container_name: victoria-logs
     ports:
-      - "9428:9428"
+      - "127.0.0.1:9428:9428"
     volumes:
       - victoria-logs-data:/victoria-logs-data
     environment:
@@ -46,7 +46,7 @@ services:
     image: grafana/grafana:11.4.0
     container_name: grafana
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - grafana-data:/var/lib/grafana
     environment:

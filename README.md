@@ -74,12 +74,14 @@ These can be adjusted in the `deploy.resources` section if you have different ha
 
 ## Port Configuration
 
-The following ports are exposed:
+The following ports are exposed on localhost only for security:
 
-| Service | Port | Purpose |
-|---------|------|---------|
-| Victoria Logs | 9428 | Log ingestion and query API |
-| Grafana | 3000 | Web UI for visualization |
+| Service | Port | Binding | Purpose |
+|---------|------|---------|---------|
+| Victoria Logs | 9428 | 127.0.0.1 | Log ingestion and query API |
+| Grafana | 3000 | 127.0.0.1 | Web UI for visualization |
+
+**Security Note:** Ports are bound to `127.0.0.1` (localhost only), which means the services are only accessible from the host machine. This prevents unauthorized external access. If you need to access these services from other machines, you'll need to modify the port bindings in `docker-compose.yml` or use a reverse proxy.
 
 ## Data Persistence
 
@@ -203,11 +205,21 @@ deploy:
 
 **Note:** When running both Victoria Logs and Grafana, consider increasing available memory to at least 10GB total system RAM.
 
-### Enable External API Access
+### Enable External Access
 
-The ports for both services are enabled by default in this configuration:
-- Victoria Logs: `9428`
-- Grafana: `3000`
+By default, the ports are bound to localhost only (`127.0.0.1`) for security. To allow access from other machines on your network, modify the port bindings in `docker-compose.yml`:
+
+```yaml
+# Change from localhost-only binding:
+ports:
+  - "127.0.0.1:9428:9428"
+
+# To all interfaces binding:
+ports:
+  - "9428:9428"
+```
+
+**Warning:** Exposing these services to external networks may pose security risks. Consider using a reverse proxy with authentication or a VPN for remote access.
 
 ## Troubleshooting
 
